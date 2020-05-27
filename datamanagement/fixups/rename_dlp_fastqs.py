@@ -67,11 +67,12 @@ def rename_fastqs(dataset_id, storage_name, dry_run=False):
 
 
 @click.command()
-@click.argument('dataset_id', type=int)
 @click.argument('storage_name')
+@click.argument('dataset_id', type=int, nargs=-1)
 @click.option('--dry_run', is_flag=True, default=False)
-def rename_fastq_dataset(dataset_id, storage_name, dry_run=False):
-    rename_fastqs(dataset_id, storage_name, dry_run=dry_run)
+def rename_fastq_dataset(storage_name, dataset_id, dry_run=False):
+    for id_ in dataset_id:
+        rename_fastqs(id_, storage_name, dry_run=dry_run)
 
 
 if __name__ == "__main__":
