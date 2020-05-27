@@ -22,6 +22,7 @@ except ImportError:
     from urllib2 import urlopen
 
 from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
+from datamanagement.utils.utils import make_dirs
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 
 import azure.storage.blob
@@ -213,11 +214,11 @@ class ServerStorageClient(object):
         if not os.path.samefile(filepath, tantalus_filepath):
             shutil.copy(filepath, tantalus_filepath)
 
-    def copy(self, filename, new_filename, wait=False):
-        if not delete_source:
-            raise ValueError('rename on server storage cannot retain source')
+    def copy(self, filename, new_filename, wait=None):
         filepath = os.path.join(self.storage_directory, filename)
         new_filepath = os.path.join(self.storage_directory, new_filename)
+        if not os.path.exists(os.path.dirname(new_filepath)):
+            make_dirs(os.path.dirname(new_filepath))
         os.link(filepath, new_filepath)
 
 
@@ -612,7 +613,9 @@ class TantalusApi(BasicAPIClient):
 
         storage_name = file_instance['storage']['name']
         storage_client = self.get_storage_client(storage_name)
-        filename = file_instance['file_resource']['filename']
+
+        file_resource = file_instance['file_resource']
+        filename = file_resource['filename']
 
         # Check the files are identical by size
         size = storage_client.get_size(filename)
@@ -633,12 +636,12 @@ class TantalusApi(BasicAPIClient):
         for other_file_instance in other_file_instances:
             if other_file_instance['id'] == file_instance['id']:
                 continue
-            file_instance = self.update(
+            other_file_instance = self.update(
                 'file_instance',
-                id=file_instance['id'],
+                id=other_file_instance['id'],
                 is_deleted=True,
             )
-            log.info('deleted file instance {}'.format(file_instance['id']))
+            log.info('deleted file instance {}'.format(other_file_instance['id']))
 
     def add_instance(self, file_resource, storage):
         """
