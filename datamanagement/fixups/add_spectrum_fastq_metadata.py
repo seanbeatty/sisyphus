@@ -17,7 +17,7 @@ DATASET_TYPE = 'dlpfastqs'
 DATASET_VERSION = 'v.0.0.1'
 
 
-def create_lane_fastq_metadata(tantalus_api, library_id):
+def create_lane_fastq_metadata(tantalus_api, library_id, sample_id):
     """
     Get meatadata per lane of sequencing for a given library.
     """
@@ -27,7 +27,7 @@ def create_lane_fastq_metadata(tantalus_api, library_id):
     index_sequence_cell_id = sample_info.set_index('index_sequence')['cell_id'].to_dict()
 
     datasets = list(tantalus_api.list(
-        "sequencedataset", dataset_type='FQ', library__library_id=library_id))
+        "sequencedataset", dataset_type='FQ', library__library_id=library_id, sample__sample_id=sample_id))
 
     datasets_by_lane = collections.defaultdict(list)
 
@@ -127,9 +127,10 @@ def create_lane_fastq_metadata(tantalus_api, library_id):
 
 @click.command()
 @click.argument('library_id')
+@click.argument('sample_id')
 @click.argument('storage_name')
 @click.option('--dry_run', is_flag=True)
-def create_fastq_metadata_yaml(library_id, storage_name, dry_run=False):
+def create_fastq_metadata_yaml(library_id, sample_id, storage_name, dry_run=False):
     """
     Create a metadata.yaml file for a all FQ datasets for a library id.
     """
@@ -138,7 +139,7 @@ def create_fastq_metadata_yaml(library_id, storage_name, dry_run=False):
     storage = tantalus_api.get_storage(storage_name)
     client = tantalus_api.get_storage_client(storage_name)
 
-    for dataset_info, metadata in create_lane_fastq_metadata(tantalus_api, library_id):
+    for dataset_info, metadata in create_lane_fastq_metadata(tantalus_api, library_id, sample_id):
         metadata_filename = os.path.join(dataset_info['base_dir'], 'metadata.yaml')
         metadata_filepath = tantalus_api.get_filepath(storage_name, metadata_filename)
 
@@ -151,7 +152,7 @@ def create_fastq_metadata_yaml(library_id, storage_name, dry_run=False):
         logging.info(f'adding {metadata_filepath} to tantalus')
 
         if not dry_run:
-            file_resource, file_instance = tantalus_api.add_file('singlecellblob', metadata_filepath, update=True)
+            file_resource, file_instance = tantalus_api.add_file(storage_name, metadata_filepath, update=True)
 
             for dataset_id in dataset_info['dataset_ids']:
                 dataset = tantalus_api.get('sequencedataset', id=dataset_id)
