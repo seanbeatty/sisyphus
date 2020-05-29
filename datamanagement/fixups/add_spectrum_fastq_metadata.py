@@ -38,16 +38,20 @@ def create_lane_fastq_metadata(tantalus_api, dataset_id):
     metadata['meta']['type'] = DATASET_TYPE
     metadata['meta']['version'] = DATASET_VERSION
 
-    metadata['sample_id'] = sample_id
-    metadata['library_id'] = library_id
+    metadata['meta']['sample_id'] = sample_id
+    metadata['meta']['library_id'] = library_id
 
     base_dirs = set()
+    cell_ids = set()
 
     file_resources = list(tantalus_api.list('file_resource', sequencedataset__id=dataset['id']))
 
     for file_resource in file_resources:
         filename = os.path.basename(file_resource['filename'])
         dirname = os.path.dirname(file_resource['filename'])
+
+        if filename.endswith('metadata.yaml'):
+            continue
 
         index_sequence = file_resource['sequencefileinfo']['index_sequence']
         cell_id = index_sequence_cell_id[index_sequence]
@@ -64,12 +68,10 @@ def create_lane_fastq_metadata(tantalus_api, dataset_id):
         }
 
         base_dirs.add(dirname)
+        cell_ids.add(cell_id)
 
     if len(base_dirs) != 1:
         raise ValueError(f'found files in zero or multiple directories {base_dirs}')
-
-    if len(sequence_lane_ids) != 1:
-        raise ValueError(f'found zero or multiple lanes {sequence_lane_ids}')
 
     assert not sample_info['cell_id'].duplicated().any()
 
@@ -119,7 +121,7 @@ def add_fastq_metadata_yaml(dataset_id, storage_name, dry_run=False):
     storage = tantalus_api.get_storage(storage_name)
     client = tantalus_api.get_storage_client(storage_name)
 
-    metadata, base_dir = create_lane_fastq_metadata(tantalus_api, dataset_id):
+    metadata, base_dir = create_lane_fastq_metadata(tantalus_api, dataset_id)
 
     metadata_filename = os.path.join(base_dir, 'metadata.yaml')
     metadata_filepath = tantalus_api.get_filepath(storage_name, metadata_filename)
@@ -154,4 +156,4 @@ def add_fastq_metadata_yamls(storage_name, dataset_id, dry_run=False):
 
 if __name__ == "__main__":
     logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
-    create_fastq_metadata_yaml()
+    add_fastq_metadata_yamls()
